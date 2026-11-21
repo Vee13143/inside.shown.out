@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inside Shown Out</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8f4f5;
+      text-align: center;
+    }
+
+    .page {
+      min-height: 100vh;
+      padding: 35px 20px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page.active {
+      display: flex;
+    }
+
+    h1 {
+      font-size: clamp(38px, 8vw, 65px);
+      background: linear-gradient(
+        90deg, orange, #ed5265, #8b69f5, #4b9cf0
+      );
+      color: transparent;
+      background-clip: text;
+      margin: 20px 0;
+    }
+
+    h2 {
+      font-size: 30px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-size: 21px;
+      font-weight: bold;
+      padding: 15px 30px;
+      border-radius: 50px;
+      margin: 10px;
+      transition: transform 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    .start {
+      background: #91c5fa;
+      color: #fa65ad;
+      font-size: 48px;
+      padding: 18px 55px;
+    }
+
+    .artbook {
+      background: #ffe48a;
+      color: #bd55c5;
+    }
+
+    .emotions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 650px;
+    }
+
+    .emotion {
+      background: #f5c6dd;
+      border: 3px solid white;
+    }
+
+    .emotion:nth-child(2n) {
+      background: #c6e7d0;
+    }
+
+    .emotion:nth-child(3n) {
+      background: #d4c6fa;
+    }
+
+    .emotion.selected {
+      outline: 3px solid #7455bb;
+    }
+
+    .prompt {
+      background: white;
+      padding: 20px;
+      border-radius: 20px;
+      margin: 10px;
+      max-width: 500px;
+    }
+
+    canvas {
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 700px;
+      height: 400px;
+      touch-action: none;
+    }
+
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .saved {
+      background: white;
+      padding: 12px;
+      border-radius: 15px;
+    }
+
+    .saved img {
+      width: 180px;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HOME PAGE -->
+  <section id="home" class="page active">
+    <p>Let Your Kid Show Their Feelings</p>
+    <h1>Inside Shown Out</h1>
+
+    <button class="start" onclick="showPage('feelings')">
+      Start
+    </button>
+
+    <button class="artbook" onclick="showPage('artbook')">
+      Art Book
+    </button>
+  </section>
+
+  <!-- EMOTION PAGE -->
+  <section id="feelings" class="page">
+    <h2>How Do You Feel?</h2>
+
+    <div class="emotions">
+      <button class="emotion" onclick="chooseEmotion('Sad')">Sad</button>
+      <button class="emotion" onclick="chooseEmotion('Embarrassed')">Embarrassed</button>
+      <button class="emotion" onclick="chooseEmotion('Calm')">Calm</button>
+      <button class="emotion" onclick="chooseEmotion('Excited')">Excited</button>
+      <button class="emotion" onclick="chooseEmotion('Happy')">Happy</button>
+      <button class="emotion" onclick="chooseEmotion('Scared')">Scared</button>
+      <button class="emotion" onclick="chooseEmotion('Anxious')">Anxious</button>
+      <button class="emotion" onclick="chooseEmotion('Angry')">Angry</button>
+    </div>
+
+    <button onclick="showPage('home')">Back</button>
+  </section>
+
+  <!-- DRAWING IDEAS PAGE -->
+  <section id="ideas" class="page">
+    <h2>Drawing Ideas For How You Feel</h2>
+    <p id="selectedEmotion"></p>
+
+    <div id="promptList"></div>
+
+    <button class="artbook" onclick="showPage('studio')">
+      Ready
+    </button>
+    <button onclick="showPage('feelings')">Back</button>
+  </section>
+
+  <!-- DRAWING STUDIO -->
+  <section id="studio" class="page">
+    <h2>Your Drawing Studio</h2>
+
+    <input type="color" id="color" value="#222222">
+    <input type="range" id="brush" min="1" max="30" value="5">
+
+    <button onclick="clearCanvas()">Clear</button>
+    <button onclick="undo()">Undo</button>
+
+    <canvas id="canvas" width="900" height="500"></canvas>
+
+    <button class="artbook" onclick="saveDrawing()">
+      Save Drawing
+    </button>
+
+    <button onclick="showPage('home')">Home</button>
+  </section>
+
+  <!-- ART BOOK -->
+  <section id="artbook" class="page">
+    <h2>My Art Book</h2>
+    <div id="gallery" class="gallery"></div>
+    <button onclick="showPage('home')">Home</button>
+  </section>
+
+  <script>
+    let emotion = "";
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext("2d");
+    let drawing = false;
+    let history = [];
+
+    const prompts = {
+      Sad: [
+        "Draw a place where you feel safe.",
+        "Draw your feelings as a rainy day.",
+        "Draw something that makes you feel comforted."
+      ],
+      Happy: [
+        "Draw what happiness looks like to you.",
+        "Draw your perfect day.",
+        "Draw something that makes you smile."
+      ],
+      Angry: [
+        "Draw your feelings as a storm.",
+        "Draw a creature that represents your frustration.",
+        "Use colors and shapes to express your energy."
+      ],
+      Anxious: [
+        "Draw a peaceful place.",
+        "Draw a little creature that represents your worries.",
+        "Draw what helps you feel supported."
+      ],
+      Calm: [
+        "Draw your perfect peaceful place.",
+        "Draw a quiet garden.",
+        "Draw what calmness looks like."
+      ],
+      Excited: [
+        "Draw something you cannot wait to do.",
+        "Draw an explosion of exciting colors.",
+        "Draw an adventure you would love to have."
+      ],
+      Scared: [
+        "Draw something that helps you feel safe.",
+        "Draw a friendly imaginary protector.",
+        "Draw a place where you feel comfortable."
+      ],
+      Embarrassed: [
+        "Draw a character who makes mistakes and keeps going.",
+        "Draw a funny imaginary situation.",
+        "Draw a reminder that nobody is perfect."
+      ]
+    };
+
+    function showPage(id) {
+      document.querySelectorAll(".page").forEach(page => {
+        page.classList.remove("active");
+      });
+
+      document.getElementById(id).classList.add("active");
+    }
+
+    function chooseEmotion(value) {
+      emotion = value;
+
+      document.getElementById("selectedEmotion").textContent =
+        "You selected: " + emotion;
+
+      document.getElementById("promptList").innerHTML = "";
+
+      prompts[emotion].forEach(prompt => {
+        const item = document.createElement("div");
+        item.className = "prompt";
+        item.textContent = prompt;
+        document.getElementById("promptList").appendChild(item);
+      });
+
+      showPage("ideas");
+    }
+
+    function position(e) {
+      const rect = canvas.getBoundingClientRect();
+
+      return {
+        x: (e.clientX - rect.left) * canvas.width / rect.width,
+        y: (e.clientY - rect.top) * canvas.height / rect.height
+      };
+    }
+
+    function saveHistory() {
+      history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      if (history.length > 30) history.shift();
+    }
+
+    canvas.addEventListener("pointerdown", e => {
+      saveHistory();
+      drawing = true;
+      canvas.setPointerCapture(e.pointerId);
+      const p = position(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    });
+
+    canvas.addEventListener("pointermove", e => {
+      if (!drawing) return;
+
+      const p = position(e);
+      ctx.lineWidth = document.getElementById("brush").value;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = document.getElementById("color").value;
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      drawing = false;
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      drawing = false;
+    });
+
+    function clearCanvas() {
+      saveHistory();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function undo() {
+      if (history.length) {
+        ctx.putImageData(history.pop(), 0, 0);
+      }
+    }
+
+    function saveDrawing() {
+      const drawings = JSON.parse(
+        localStorage.getItem("artbook") || "[]"
+      );
+
+      drawings.push({
+        emotion: emotion,
+        date: new Date().toLocaleDateString(),
+        image: canvas.toDataURL("image/png")
+      });
+
+      localStorage.setItem("artbook", JSON.stringify(drawings));
+
+      alert("Your artwork has been saved!");
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      history = [];
+      showPage("artbook");
+      displayGallery();
+    }
+
+    function displayGallery() {
+      const drawings = JSON.parse(
+        localStorage.getItem("artbook") || "[]"
+      );
+
+      const gallery = document.getElementById("gallery");
+      gallery.innerHTML = "";
+
+      drawings.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "saved";
+
+        const img = document.createElement("img");
+        img.src = item.image;
+
+        const details = document.createElement("p");
+        details.textContent = item.emotion + " • " + item.date;
+
+        card.appendChild(img);
+        card.appendChild(details);
+        gallery.appendChild(card);
+      });
+    }
+
+    displayGallery();
+  </script>
+
+</body>
+</html>
+Add first website page
